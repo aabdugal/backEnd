@@ -1,8 +1,20 @@
 const express = require('express')
 const app = express()
+require('dotenv').config()
 const morgan = require('morgan')
 const cors = require('cors')
 
+const Note = require('./models/note')
+const errorHandler = (error, request, response, next)=>{
+  console.log(error.message)
+
+  if(error.name === 'Cast Error'){
+    return response.status(400).send({error: 'malformatted id'})
+  }
+  next(error)
+}
+
+app.use(errorHandler)
 app.use(cors())
 app.use(express.static('build'))
 app.use(express.json())
@@ -45,12 +57,18 @@ app.get('/', (req,res)=>{
 })
 
 app.get('/api/persons',(req,res)=>{
-  res.json(persons)
+  Note.find({}).then(notes =>{
+    res.json(notes)
+  })
 })
 
 app.get('/info',(req,res)=>{
-  res.send(`<div> Phonebook has info for ${persons.length} people</div>
+  // const length =0
+  Note.find({}).then(notes=>{
+    res.send(`<div> Phonebook has info for ${notes.length} people</div>
             <div> ${new Date()} </div>`)
+  })
+  
 })
 
 app.post('/api/persons',(req, res)=>{
@@ -66,43 +84,80 @@ app.post('/api/persons',(req, res)=>{
       error: 'Name is already in the list'
     })
   }
-  const person = {
+  const person = new Note({
     name: body.name,
     number: body.number,
-    id: Math.floor(Math.random()*Math.floor(100))
-  }
+    // id: Math.floor(Math.random()*Math.floor(100))
+  })
+
   console.log(person)
-  persons = persons.concat(person)
-  res.json(person)
+
+  person.save().then(savedNote=>{
+    res.json(savedNote)
+})
+  // persons = persons.concat(person)
+  // res.json(person)
 })
 
 
 
 
 
-app.get('/api/persons/:id', (req, res)=>{
-  const id = Number(req.params.id)
-  const person = persons.find(person=>person.id===id)
+app.get('/api/persons/:id', (req, res, next)=>{
+  Note.findById(req.params.id).then(note=>{
+    if(note){
+      res.json(note)
+    }else{
+      res.status(404).end()
+    }
+  })
+  .catch(error=>next(error))
+  // const id = Number(req.params.id)
+  // const person = persons.find(person=>person.id===id)
 
-  if(person){
-    res.json(person)
-  } else{
-    res.status(404).end()
-  }
+  // if(person){
+  //   res.json(person)
+  // } else{
+  //   res.status(404).end()
+  // }
 })
 
-app.delete('/api/persons/:id',(request,response)=>{
-  const id = Number(request.params.id)
-  // persons = persons.filter(person=>person.id!==id)
-  persons = persons.filter(person => person.id !==id)
+app.delete('/api/persons/:id',(request,response,next)=>{
+  Note.findByIdAndRemove(request.params.id).then(result=>{
+    response.status(204).end
+  }).catch(error=>next(error))
+  // const id = Number(request.params.id)
+  // // persons = persons.filter(person=>person.id!==id)
+  // persons = persons.filter(person => person.id !==id)
 
-  response.status(204).end()
+  // response.status(204).end()
 
   // res.status(204).end()
 })
 
+app.put('/api/persons/:id', (request,response,next)=>{
+  const body = request.body
+  const person = {
+    name: body.name,
+    number: body.number
+  }
+  Note.findByIdAndUpdate(request.params.id, person, {new:true}).then(updatedNote =>{
+    response.json(updatedNote)
+  }).catch(error=>next(error))
+})
+// app.put('/api/perrsons/:id',(request,response,next)=>{
+//   const body = request.body
+//   const person = {
+//     name: body.name,
+//     number: body.number
+//   }
 
-const PORT = process.env.PORT || 3001
+//   Note.findByIdAndUpdate(request.params.id, person, {new:true}).then(updatedNote=>{
+//     response.json(updatedNote)
+//   }).catch(error=>next(error))
+// })
+
+const PORT = process.env.PORT
 app.listen(PORT, ()=>{
   console.log(`Server running on port ${PORT}`)
 })
