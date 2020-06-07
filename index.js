@@ -10,6 +10,8 @@ const errorHandler = (error, request, response, next)=>{
 
   if(error.name === 'Cast Error'){
     return response.status(400).send({error: 'malformatted id'})
+  }else if(error.name === 'ValidationError'){
+    return response.status(400).send({})
   }
   next(error)
 }
@@ -65,6 +67,7 @@ app.get('/api/persons',(req,res)=>{
 app.get('/info',(req,res)=>{
   // const length =0
   Note.find({}).then(notes=>{
+    console.log(notes)
     res.send(`<div> Phonebook has info for ${notes.length} people</div>
             <div> ${new Date()} </div>`)
   })
